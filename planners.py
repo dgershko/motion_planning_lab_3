@@ -1,28 +1,53 @@
 import numpy as np
 import time
 from RRTTree import RRTTree
+from Tree import RRTree
+from building_blocks import Building_Blocks
+from pprint import pprint
 
 class RRT_STAR(object):
-    def __init__(self, max_step_size, max_itr, bb):
+    def __init__(self, max_step_size, max_itr, bb: Building_Blocks):
         self.max_step_size = max_step_size
         self.max_itr = max_itr
         self.bb = bb
-        self.tree = RRTTree(bb)
+
     
-    def find_path(self, start_conf, goal_conf, filename):
-        """Implement RRT-STAR"""
+    def find_path(self, start_conf, goal_conf, filename, return_cost=False):
+        """Implement RRT-STAR - Return a path as numpy array"""
+        self.tree = RRTree(start_conf, self.bb)
         
         i = 1
-        time_start = time.time()
-        self.tree.AddVertex(start_conf)
-
+        start_time = time.perf_counter()
         while i < self.max_itr:
-            pass
-        # TODO
+            rand_state = self.bb.sample(goal_conf)
+            nearest_state = self.tree.get_nearest_state(rand_state)
+            new_state = self.extend(nearest_state, rand_state)
+            if self.bb.local_planner(new_state, nearest_state):
+                self.tree.insert_state(new_state, nearest_state)
+
+                # the * part of the algorithm
+                current_k = self.get_k_num(i)
+                near_states = self.tree.get_knn_states(new_state, current_k)
+                # filter out states with illegal edges
+                near_states = [state for state in near_states if self.bb.local_planner(state, new_state)]
+                for state in near_states:
+                    self.rewire(state, new_state)
+                for state in near_states:
+                    self.rewire(new_state, state)
+
+                if np.array_equal(new_state, goal_conf):
+                    print("found goal state!")
+                    break
+            i += 1
+        
+        end_time = time.perf_counter()
+        print(f"Time taken: {end_time - start_time:.2f}s")
+        path, cost = self.tree.path_to_state(goal_conf)
+        if return_cost:
+            return path, cost
+        return path
 
 
-
-    
     def extend(self, x_near, x_random)-> np.array:
         '''
         Implement the Extend method
@@ -30,19 +55,25 @@ class RRT_STAR(object):
         @param x_random - random sampled configuration
         return the extended configuration
         '''
-        # TODO
+        direction = x_random - x_near
+        distance = np.linalg.norm(direction)
+        if distance <= self.max_step_size:
+            return x_random
+        unit_direction_vector = direction / distance
+        return x_near + unit_direction_vector * self.max_step_size
        
     
-    def rewire(self, x_potential_parent_id, x_child_id) -> None:
+    def rewire(self, x_potential_parent, x_child) -> None:
         '''
         Implement the rewire method
         @param x_potential_parent_id - candidte to become a parent
         @param x_child_id - the id of the child vertex
         return None
         '''
-        # TODO
-        
-           
+        # if self.bb.ed(potential_parent, child):
+        cost = self.bb.edge_cost(x_potential_parent, x_child)
+        if self.tree.cost_to_state(x_potential_parent) + cost < self.tree.cost_to_state(x_child):
+            self.tree.set_parent_for_state(state=x_child, new_parent=x_potential_parent)
 
 
     def get_shortest_path(self, dest):
@@ -51,8 +82,7 @@ class RRT_STAR(object):
         @param dest - the id of some vertex
         return the shortest path and the cost
         '''
-        # TODO
-        # return path, cost
+        return self.tree.path_to_state(dest)
     
     def get_k_num(self, i):
         '''
