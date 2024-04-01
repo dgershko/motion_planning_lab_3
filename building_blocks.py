@@ -34,7 +34,10 @@ class Building_Blocks(object):
         @param goal_conf - the goal configuration
         """
         if np.random.uniform(0, 1) < self.p_bias:
-            return goal_conf
+            if np.random.randint(0, 1) == 0:
+                return goal_conf
+            # return nearby permutation of goal conf
+            noise = np.random.uniform(-0.1, 0.1, size=goal_conf.shape)
         constraints = np.array(list(self.ur_params.mechamical_limits.values()))
         conf = np.random.uniform(constraints[:, 0], constraints[:, 1])
         return np.array(conf)
@@ -45,7 +48,8 @@ class Building_Blocks(object):
         return True if in collision
         @param conf - some configuration 
         """
-        conf_tuple = tuple(conf)
+        conf_tuple = tuple([float(c) for c in conf])
+        # print(conf_tuple)
         try:
             res = self.checked_states[conf_tuple]
             self.cache_hits += 1
@@ -57,13 +61,12 @@ class Building_Blocks(object):
         # global sphere coords: {link name: list of spheres}, s.t. list of spheres = [(x, y, z, [SOMETHING??])]
         global_sphere_coords = self.transform.conf2sphere_coords(conf)
     
-        # arm - floor collision
+        # arm - floor and arm - window collisions
         for key, spheres in global_sphere_coords.items():
             if key == "shoulder_link":
                 continue
             radius = self.ur_params.sphere_radius[key]
             if any((sphere[2] - radius < 0 or sphere[0] + radius > 0.4) for sphere in spheres):
-                # print("Collision with floor detected!")
                 return True
     
         # arm - obstacle collision
@@ -72,9 +75,9 @@ class Building_Blocks(object):
             robot_spheres = np.concatenate(list(global_sphere_coords.values()), axis=0)
             robot_spheres = np.array([np.array(sphere, dtype='float64') for sphere in robot_spheres])
             distances = cdist(robot_spheres[:, :-1], obstacle_spheres)
-            differences = distances - self.sphere_radii[:, None] - self.env.radius
-            if np.any(differences < 0):
+            if np.any(distances - self.sphere_radii[:, None] - self.env.radius < 0):
                 return True
+
         
         # get list of combination of robot parts, ignoring parts that are adjacent as they always collide at their connection point
         # arm - arm collision

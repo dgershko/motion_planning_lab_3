@@ -154,6 +154,71 @@ def inverse_kinematic_solution(DH_matrix, transform_matrix,):
         theta[3, i] = atan2(T34[1, 0], T34[0, 0])
     return theta
 
+def get_inverse_kinematics_solutions(tx, ty) -> np.ndarray:
+    """
+    Returns a list of all possible inverse kinematic solutions for the given end-effector position
+    """
+    alpha = -np.pi
+    beta = 0.0
+    gamma = 0
+    tz = 0.1
+    env_idx =3
+    transform = np.matrix(
+        [
+            [
+                cos(beta) * cos(gamma), sin(alpha) * sin(beta)*cos(gamma) - cos(alpha)*sin(gamma),
+                cos(alpha)*sin(beta)*cos(gamma)+sin(alpha)*sin(gamma), tx
+            ],
+            [
+                cos(beta)* sin(gamma), sin(alpha)*sin(beta)*sin(gamma)+cos(alpha)*cos(gamma),
+                cos(alpha)*sin(beta)*sin(gamma)-sin(alpha)*cos(gamma), ty
+            ],
+            [
+                -sin(beta), sin(alpha)*cos(beta), cos(alpha)*cos(beta), tz
+            ],
+            [
+                0, 0,0,1
+            ]
+        ]
+    )
+        
+    IKS = inverse_kinematic_solution(DH_matrix_UR5e, transform)
+
+    ur_params = UR5e_PARAMS(inflation_factor=1)
+    env = Environment(env_idx=env_idx)
+    transform = Transform(ur_params)
+    bb = Building_Blocks(transform=transform, ur_params=ur_params, env=env, resolution=0.1, p_bias=0.05)
+    candidate_sols = []
+    for i in range(IKS.shape[1]):
+        candidate_sols.append(IKS[:, i])  
+    candidate_sols = np.array(candidate_sols)
+    sols = [] 
+    for candidate_sol in candidate_sols:
+        if bb.is_in_collision(candidate_sol):
+            continue
+        for idx, angle in enumerate(candidate_sol):
+            if 2*np.pi > angle > np.pi:
+                candidate_sol[idx] = -(2*np.pi - angle)
+            if -2*np.pi < angle < -np.pi:
+                candidate_sol[idx] = -(2*np.pi + angle)
+        if np.max(candidate_sol) > np.pi or np.min(candidate_sol) < -np.pi:
+            continue  
+        sols.append(candidate_sol)
+    
+    # verify solution:
+    final_sol = []
+    for sol in sols:
+        transform = forward_kinematic_solution(DH_matrix_UR5e, sol)
+        diff = np.linalg.norm(np.array([transform[0,3],transform[1,3],transform[2,3]])-
+                              np.array([tx,ty,tz]))
+        if diff < 0.05:
+            final_sol.append(sol)
+    final_sol = np.array(final_sol)
+    try:
+        return np.squeeze(final_sol, axis=2)
+    except:
+        print(final_sol)
+        exit()
 
 
 if __name__ == '__main__':
@@ -213,7 +278,7 @@ if __name__ == '__main__':
 
     try:
         visualizer.show_path(final_sol)
-        visualizer.show_conf(final_sol[0])
+        # visualizer.show_conf(final_sol[0])
         print(final_sol)
         np.save('sol' ,np.array(final_sol))
     except:

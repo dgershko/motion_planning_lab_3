@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from mpl_toolkits.mplot3d import Axes3D
-
+import imageio
 
 class Visualize_UR(object):
     def __init__(self, ur_params, env, transform, bb):
@@ -83,6 +83,35 @@ class Visualize_UR(object):
                 self.show()
                 time.sleep(sleep_time)
                 self.ax.axes.clear()
+        plt.close()
+    def save_path_as_gif(self, path, filename):
+        '''
+        Saves the path as a GIF file
+        '''
+        confs_num = len(path) - 1
+        resolution = 5 * np.pi / 180
+        images = []
+
+        for i in range(confs_num):
+            max_diff = np.max(np.abs(path[i + 1] - path[i]))
+            nums = max(int(max_diff / resolution), 2)
+
+            if i + 1 == confs_num:
+                confs_to_plot = np.linspace(start=path[i], stop=path[i + 1], num=nums, endpoint=True)
+            else:
+                confs_to_plot = np.linspace(start=path[i], stop=path[i + 1], num=nums, endpoint=False)
+
+            for conf in confs_to_plot:
+                global_sphere_coords = self.transform.conf2sphere_coords(conf)
+                self.draw_spheres(global_sphere_coords, track_end_effector=True)
+                self.fig.canvas.draw()
+                image = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype='uint8')
+                image = image.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
+                images.append(image)
+                self.ax.clear()  # Clear the axes for the next frame
+
+        imageio.mimsave(filename, images, fps=60)
+        plt.close()
 
 
     def draw_squre(self):

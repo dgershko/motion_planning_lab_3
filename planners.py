@@ -12,21 +12,27 @@ class RRT_STAR(object):
         self.bb = bb
 
     
-    def find_path(self, start_conf, goal_conf, filename, return_cost=False):
+    def find_path(self, start_conf, goal_conf, filename=None, return_cost=False):
         """Implement RRT-STAR - Return a path as numpy array"""
         self.tree = RRTree(start_conf, self.bb)
-        
+        # print(f"starting search between {start_conf} and {goal_conf}")
         i = 1
         start_time = time.perf_counter()
         while i < self.max_itr:
+            i += 1
             rand_state = self.bb.sample(goal_conf)
             nearest_state = self.tree.get_nearest_state(rand_state)
             new_state = self.extend(nearest_state, rand_state)
+            if self.bb.is_in_collision(new_state):
+                continue
             if self.bb.local_planner(new_state, nearest_state):
                 self.tree.insert_state(new_state, nearest_state)
+                # if len(self.tree.vertices) % 100 == 0:
+                #     print(f"iter: {i}, vertices in tree: {len(self.tree.vertices)}")
 
                 # the * part of the algorithm
-                current_k = self.get_k_num(i)
+                # current_k = self.get_k_num(i)
+                current_k = 2 * int(np.log(len(self.tree.vertices)))
                 near_states = self.tree.get_knn_states(new_state, current_k)
                 # filter out states with illegal edges
                 near_states = [state for state in near_states if self.bb.local_planner(state, new_state)]
@@ -36,12 +42,14 @@ class RRT_STAR(object):
                     self.rewire(new_state, state)
 
                 if np.array_equal(new_state, goal_conf):
-                    print("found goal state!")
+                    # print("found goal state!")
                     break
-            i += 1
-        
+        if i == self.max_itr:
+            if return_cost:
+                return None, np.inf # path not found
+            return None
         end_time = time.perf_counter()
-        print(f"Time taken: {end_time - start_time:.2f}s")
+        # print(f"Time taken: {end_time - start_time:.2f}s")
         path, cost = self.tree.path_to_state(goal_conf)
         if return_cost:
             return path, cost
