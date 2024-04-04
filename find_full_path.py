@@ -58,6 +58,7 @@ class PathOptimizer():
             self.target_cube_coords = config.roman_cubes
 
         self.existing_plans, self.existing_plans_quality = self.load_existing_plans(self.user_path)
+            
         try:
             self.target_cube_configs = np.load(f"{self.user_path}/place_cube_configs.npy")
         except:
@@ -71,10 +72,18 @@ class PathOptimizer():
         existing_plans = []
         existing_plans_quality = []
         for cube_idx in range(len(self.cube_coords)):
-            grip_plan = np.load(f"{npy_path}/grip_cube_{cube_idx+1}.npy")
-            grip_plan_quality = self.get_plan_quality(grip_plan[:-1])
-            place_plan = np.load(f"{npy_path}/place_cube_{cube_idx+1}.npy")
-            place_plan_quality = self.get_plan_quality(place_plan)
+            try:
+                grip_plan = np.load(f"{npy_path}/grip_cube_{cube_idx+1}.npy")
+                grip_plan_quality = self.get_plan_quality(grip_plan[:-1])
+            except:
+                grip_plan = np.array([])
+                grip_plan_quality = np.inf
+            try:
+                place_plan = np.load(f"{npy_path}/place_cube_{cube_idx+1}.npy")
+                place_plan_quality = self.get_plan_quality(place_plan)
+            except:
+                place_plan = np.array([])
+                place_plan_quality = np.inf
             existing_plans.append([grip_plan, place_plan])
             existing_plans_quality.append([grip_plan_quality, place_plan_quality])
         return existing_plans, existing_plans_quality
