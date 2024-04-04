@@ -15,6 +15,7 @@ class RRT_STAR(object):
     def find_path(self, start_conf, goal_conf, filename=None, return_cost=False):
         """Implement RRT-STAR - Return a path as numpy array"""
         self.tree = RRTree(start_conf, self.bb)
+        found_goal = False
         # print(f"starting search between {start_conf} and {goal_conf}")
         i = 1
         start_time = time.perf_counter()
@@ -31,7 +32,6 @@ class RRT_STAR(object):
                 #     print(f"iter: {i}, vertices in tree: {len(self.tree.vertices)}")
 
                 # the * part of the algorithm
-                # current_k = self.get_k_num(i)
                 current_k = 2 * int(np.log(len(self.tree.vertices)))
                 near_states = self.tree.get_knn_states(new_state, current_k)
                 # filter out states with illegal edges
@@ -42,12 +42,12 @@ class RRT_STAR(object):
                     self.rewire(new_state, state)
 
                 if np.array_equal(new_state, goal_conf):
-                    # print("found goal state!")
-                    break
-        if i == self.max_itr:
+                    found_goal = True
+    
+        if not found_goal:
             if return_cost:
-                return None, np.inf # path not found
-            return None
+                return [], np.inf # path not found
+            return []
         end_time = time.perf_counter()
         # print(f"Time taken: {end_time - start_time:.2f}s")
         path, cost = self.tree.path_to_state(goal_conf)

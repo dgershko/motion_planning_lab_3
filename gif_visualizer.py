@@ -1,9 +1,8 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use the Agg backend
 import matplotlib.pyplot as plt
-import time
-from mpl_toolkits.mplot3d import Axes3D
 import imageio
-import seaborn as sns
 
 from environment import Environment
 from kinematics import UR5e_PARAMS, Transform
@@ -15,7 +14,7 @@ class VisualizeGif():
         self.env = env # type: Environment
         self.transform = transform # type: Transform
         self.bb = bb # type: Building_Blocks
-        self.fig = plt.figure()
+        self.fig = plt.figure(figsize=(10, 10))
         self.ax = self.fig.add_subplot(111, projection='3d')
         self.ax.set_xlabel('X')
         self.ax.set_ylabel('Y')
@@ -52,6 +51,16 @@ class VisualizeGif():
                 y = np.sin(u) * np.sin(v) * sphere_radius + sphere[1]
                 z = np.cos(v) * sphere_radius + sphere[2]
                 self.ax.plot_surface(x, y, z, color=link_color, alpha=0.5)
+        # return end effector position
+        return global_sphere_coords['wrist_3_link'][-1]
+
+    def draw_ee(self, ee_list):
+        if len(ee_list) > 1:
+            for i in range(len(ee_list) - 1):
+                self.ax.plot(
+                    [ee_list[i][0], ee_list[i+1][0]], 
+                    [ee_list[i][1], ee_list[i+1][1]], 
+                    [ee_list[i][2], ee_list[i+1][2]], color='red')
 
     def draw(self, config, cubes):
         self.draw_obstacles(cubes)
@@ -60,24 +69,36 @@ class VisualizeGif():
 
     def interpolate_path(self, path):
         interpolated_path = []
+        step_size = 0.2
         for i in range(len(path) - 1):
             config_a = path[i]
             config_b = path[i + 1]
-            points = np.linspace(config_a, config_b, num=10, endpoint=False)
+            num_steps = int(np.linalg.norm(config_b - config_a) / step_size)
+            points = np.linspace(config_a, config_b, num=num_steps, endpoint=False)
             interpolated_path.extend(points)
         interpolated_path.append(path[-1])
         return interpolated_path
 
-    def save_paths_to_gif(self, path_list, cube_list):
-        plt.ioff()
+    def save_paths_to_gif(self, path_list: list[list[list[float]]], cube_list: list[list[list[float]]], filename: str = None):
+        """
+        Inputs:
+        path_list: a list of paths for the robot to take (list[list[configuration]])
+        cube_list: a list of cube positions, for each of the paths (list[list[cube position]])
+        each path needs a matching cube position list for where the cubes are during that path
+        """
+        num_paths = len(path_list)
+        num_current_path = 1
         images = []
+        end_effector_points = []
         for path, cubes in zip(path_list, cube_list):
+            print(f'Drawing path {num_current_path} / {num_paths}')
+            num_current_path += 1
             i_path = self.interpolate_path(path)
             for config in i_path:
                 self.draw_obstacles(cubes)
-                self.draw_robot(config)
-                plt.draw()
-                plt.pause(0.001)
+                ee = self.draw_robot(config)
+                end_effector_points.append(ee)
+                self.draw_ee(end_effector_points)
                 self.fig.canvas.draw()
                 image = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype='uint8')
                 image = image.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
@@ -86,5 +107,8 @@ class VisualizeGif():
                 self.ax.set_xlim3d(-1, 1)
                 self.ax.set_ylim3d(-1, 1)
                 self.ax.set_zlim3d(0, 2)
-        imageio.mimsave('animation.gif', images, fps=10)
+        if filename:
+            imageio.mimsave(filename, images, fps=10)
+        else:
+            imageio.mimsave('animation.gif', images, fps=10)
         plt.close()

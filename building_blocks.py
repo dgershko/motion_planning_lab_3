@@ -15,9 +15,12 @@ class Building_Blocks(object):
         self.resolution = resolution
         self.p_bias = p_bias
         self.cost_weights = np.array([0.4, 0.3 ,0.2 ,0.1 ,0.07 ,0.05])
-        self.checked_states = {} # type: dict[tuple[float, float], bool]
-        self.cache_hits = 0
-        self.cache_misses = 0
+        self.in_collision_cache = {} # type: dict[tuple[float, float], bool]
+        self.in_collision_cache_hits = 0
+        self.in_collision_cache_misses = 0
+        self.local_planner_cache = {} # type: dict[tuple[float, float], bool]
+        self.local_planner_cache_hits = 0
+        self.local_planner_cache_misses = 0
         self.parts = self.ur_params.ur_links
         self.arm_part_combinations = []
         for i in range(len(self.parts)):
@@ -34,10 +37,11 @@ class Building_Blocks(object):
         @param goal_conf - the goal configuration
         """
         if np.random.uniform(0, 1) < self.p_bias:
-            if np.random.randint(0, 1) == 0:
-                return goal_conf
-            # return nearby permutation of goal conf
-            noise = np.random.uniform(-0.1, 0.1, size=goal_conf.shape)
+            return goal_conf
+            # if np.random.randint(0, 1) == 0:
+            #     return goal_conf
+            # # return nearby permutation of goal conf
+            # noise = np.random.uniform(-0.1, 0.1, size=goal_conf.shape)
         constraints = np.array(list(self.ur_params.mechamical_limits.values()))
         conf = np.random.uniform(constraints[:, 0], constraints[:, 1])
         return np.array(conf)
@@ -51,12 +55,12 @@ class Building_Blocks(object):
         conf_tuple = tuple([float(c) for c in conf])
         # print(conf_tuple)
         try:
-            res = self.checked_states[conf_tuple]
-            self.cache_hits += 1
+            res = self.in_collision_cache[conf_tuple]
+            self.in_collision_cache_hits += 1
             return res
         except KeyError:
-            self.cache_misses += 1
-            self.checked_states[conf_tuple] = True
+            self.in_collision_cache_misses += 1
+            self.in_collision_cache[conf_tuple] = True
         # hint: use self.transform.conf2sphere_coords(), self.ur_params.sphere_radius, self.env.obstacles
         # global sphere coords: {link name: list of spheres}, s.t. list of spheres = [(x, y, z, [SOMETHING??])]
         global_sphere_coords = self.transform.conf2sphere_coords(conf)
@@ -88,7 +92,7 @@ class Building_Blocks(object):
             if np.any(differences < 0):
                 return True
 
-        self.checked_states[conf_tuple] = False
+        self.in_collision_cache[conf_tuple] = False
         return False
         
     
@@ -97,11 +101,26 @@ class Building_Blocks(object):
         @param prev_conf - some configuration
         @param current_conf - current configuration
         '''
+        # cache stuff
+        prev_conf_tuple = tuple([float(c) for c in prev_conf])
+        current_conf_tuple = tuple([float(c) for c in current_conf])
+        if (prev_conf_tuple, current_conf_tuple) in self.local_planner_cache:
+            self.local_planner_cache_hits += 1
+            return self.local_planner_cache[(prev_conf_tuple, current_conf_tuple)]
+        elif (current_conf_tuple, prev_conf_tuple) in self.local_planner_cache:
+            self.local_planner_cache_hits += 1
+            return self.local_planner_cache[(current_conf_tuple, prev_conf_tuple)]
+        else:
+            self.local_planner_cache_misses += 1
+
         num_configs = int(np.max(np.abs(current_conf - prev_conf)) / self.resolution) + 1
         if num_configs < 3:
             num_configs = 3
         configs = np.linspace(prev_conf, current_conf, num_configs, True)
-        return not any(self.is_in_collision(config) for config in configs)
+
+        is_collision_free = not any(self.is_in_collision(config) for config in configs)
+        self.local_planner_cache[(prev_conf_tuple, current_conf_tuple)] = is_collision_free
+        return is_collision_free
         
     
     def edge_cost(self, conf1, conf2):
