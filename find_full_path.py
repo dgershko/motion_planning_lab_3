@@ -28,7 +28,8 @@ class PathOptimizer():
     def __init__(self, username):
         self.step_size = 1
         self.rrt_iter = 700
-        self.optimizer_iter = 300
+        self.optimizer_iter = 500
+        self.optimize_existing_iter = 15
         self.num_cubes = 6
         self.pool = mp.Pool(16)
         self.ur_params = UR5e_PARAMS(inflation_factor=1)
@@ -162,11 +163,15 @@ class PathOptimizer():
             plans.append([grip_plan, place_plan])
     
     def optimize_grip(self, start_config, cube_idx):
-        print(f"Optimizing grip plan for cube {cube_idx+1}")
-        starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * self.optimizer_iter
+        num_iter = self.optimize_existing_iter if self.existing_plans_quality[cube_idx][0] < np.inf else self.optimizer_iter
+        print(f"Optimizing grip plan for cube {cube_idx+1} with {num_iter} iterations")
+        starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
         fix_grip_result = lambda res: np.vstack((self.simplify_path(res[::-1]), self.cubes_actual[cube_idx]))
         results = [fix_grip_result(res) for res in results if len(res) >= 2]
+        if results == []:
+            print(f"\033[91mNo valid grip plans found for cube {cube_idx+1}\033[0m")
+            return np.array([])
         grip_plan = min(results, key=self.get_plan_quality)
         if self.get_plan_quality(grip_plan) < self.existing_plans_quality[cube_idx][0]:
             print(f"\033[92mSaving grip plan for cube {cube_idx+1}\033[0m")
@@ -180,11 +185,15 @@ class PathOptimizer():
         return grip_plan
 
     def optimize_place(self, start_config, cube_idx):
-        print(f"Optimizing place plan for cube {cube_idx+1}")
-        starmap_args = [(start_config, self.target_cube_configs[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * self.optimizer_iter
+        num_iter = self.optimize_existing_iter if self.existing_plans_quality[cube_idx][0] < np.inf else self.optimizer_iter
+        print(f"Optimizing place plan for cube {cube_idx+1} with {num_iter} iterations")
+        starmap_args = [(start_config, self.target_cube_configs[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
         fix_place_result = lambda res: self.simplify_path(np.vstack((self.cube_approaches[cube_idx], res)))
         results = [fix_place_result(res) for res in results if len(res) >= 2]
+        if results == []:
+            print(f"\033[91mNo valid place plans found for cube {cube_idx+1}\033[0m")
+            return np.array([])
         place_plan = min(results, key=self.get_plan_quality)
         if self.get_plan_quality(place_plan) < self.existing_plans_quality[cube_idx][1]:
             np.save(f"{self.user_path}/place_cube_{cube_idx+1}", place_plan)
