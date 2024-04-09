@@ -181,7 +181,7 @@ class PathOptimizer():
         print(f"New best plan: cost: {self.get_plan_quality(grip_plan)}, length: {len(grip_plan)}")
         print(f"Existing plan: cost: {self.existing_plans_quality[cube_idx][0]}, length: {len(self.existing_plans[cube_idx][0])}")
         print(f"local planner cache: {self.bb.local_planner_cache_hits} hits, {self.bb.local_planner_cache_misses} misses, size = {len(self.bb.local_planner_cache)}")
-        print()
+        print("", flush=True)
         return grip_plan
 
     def optimize_place(self, start_config, cube_idx):
@@ -203,7 +203,7 @@ class PathOptimizer():
         print(f"New best plan: cost: {self.get_plan_quality(place_plan)}, length: {len(place_plan)}")
         print(f"Existing plan: cost: {self.existing_plans_quality[cube_idx][1]}, length: {len(self.existing_plans[cube_idx][1])}")
         print(f"local planner cache: {self.bb.local_planner_cache_hits} hits, {self.bb.local_planner_cache_misses} misses, size = {len(self.bb.local_planner_cache)}")
-        print()
+        print("", flush=True)
         return place_plan
 
     def save_paths_to_gif(self):
