@@ -27,21 +27,15 @@ def find_config_plan(conf_a, conf_b, cube_coords, step_size, rrt_iter):
 class PathOptimizer():
     def __init__(self, username):
         self.step_size = 1
-        self.rrt_iter = 1000
-        self.optimizer_iter = 100
+        self.rrt_iter = 700
+        self.optimizer_iter = 300
         self.num_cubes = 6
-        self.pool = mp.Pool(12)
+        self.pool = mp.Pool(16)
         self.ur_params = UR5e_PARAMS(inflation_factor=1)
         self.transform = Transform(self.ur_params)
         self.env = Environment(env_idx=3)
         self.bb = Building_Blocks(self.transform, self.ur_params, self.env)
         self.home = config.home
-        self.cube1_coords = [-0.10959248574268822, -0.6417732149769166, 0.1390226933317033]
-        self.cube2_coords = [0.08539928976845282, -0.8370930220946053, 0.13813472317717034]
-        self.cube3_coords = [-0.008445229140271685, -0.7365370847309188, 0.00955541284784159]
-        self.cube4_coords = [0.23647185443765273, -0.769747539513382, 0.03971366463235271]
-        self.cube5_coords = [0.26353072323141574, -0.4629969534200313, 0.2651034131371637]
-        self.cube6_coords = [0.26940059242703984, -0.4730222745248458, 0.021688493137064376]
         self.cube_coords = config.cube_coords
         self.init_coords = self.cube_coords.copy()
         self.cube_approaches = config.cube_approaches
@@ -171,7 +165,6 @@ class PathOptimizer():
         print(f"Optimizing grip plan for cube {cube_idx+1}")
         starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * self.optimizer_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
-        # fix_grip_result = lambda res: self.simplify_path(np.vstack((res[::-1], self.cubes_actual[cube_idx])))
         fix_grip_result = lambda res: np.vstack((self.simplify_path(res[::-1]), self.cubes_actual[cube_idx]))
         results = [fix_grip_result(res) for res in results if len(res) >= 2]
         grip_plan = min(results, key=self.get_plan_quality)
@@ -182,7 +175,7 @@ class PathOptimizer():
             print(f"\033[91mExisting grip plan is better for cube {cube_idx+1}\033[0m")
         print(f"New best plan: cost: {self.get_plan_quality(grip_plan)}, length: {len(grip_plan)}")
         print(f"Existing plan: cost: {self.existing_plans_quality[cube_idx][0]}, length: {len(self.existing_plans[cube_idx][0])}")
-        print(f"local planner cache: {self.bb.local_planner_cache_hits} hits, {self.bb.local_planner_cache_misses} misses")
+        print(f"local planner cache: {self.bb.local_planner_cache_hits} hits, {self.bb.local_planner_cache_misses} misses, size = {len(self.bb.local_planner_cache)}")
         print()
         return grip_plan
 
@@ -200,7 +193,7 @@ class PathOptimizer():
             print(f"\033[91mExisting place plan is better for cube {cube_idx+1}\033[0m")
         print(f"New best plan: cost: {self.get_plan_quality(place_plan)}, length: {len(place_plan)}")
         print(f"Existing plan: cost: {self.existing_plans_quality[cube_idx][1]}, length: {len(self.existing_plans[cube_idx][1])}")
-        print(f"local planner cache: {self.bb.local_planner_cache_hits} hits, {self.bb.local_planner_cache_misses} misses")
+        print(f"local planner cache: {self.bb.local_planner_cache_hits} hits, {self.bb.local_planner_cache_misses} misses, size = {len(self.bb.local_planner_cache)}")
         print()
         return place_plan
 
@@ -224,6 +217,16 @@ class PathOptimizer():
         gif_vis.save_paths_to_gif(plans, cube_positions, f"{self.user_path}/cube_plan.gif")
 
 if __name__ == "__main__":
-    path_optimizer = PathOptimizer("dgershko")
-    path_optimizer.optimize_plan()
-    path_optimizer.save_paths_to_gif()
+    path_optimizer = PathOptimizer("roman")
+    # # print existing paths and their quality
+    # for i in range(6):
+    #     print(f"Cube {i+1}:")
+    #     print(f"Grip plan:")
+    #     print(f"\tcost: {path_optimizer.get_plan_quality(path_optimizer.existing_plans[i][0])}")
+    #     print(f"\tlength: {len(path_optimizer.existing_plans[i][0])}")
+    #     print(f"Place plan:")
+    #     print(f"\tcost: {path_optimizer.get_plan_quality(path_optimizer.existing_plans[i][1])}")
+    #     print(f"\tlength: {len(path_optimizer.existing_plans[i][1])}")
+    #     print()
+    # path_optimizer.optimize_plan()
+    # path_optimizer.save_paths_to_gif()
