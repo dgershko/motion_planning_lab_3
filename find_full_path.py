@@ -228,5 +228,5 @@ if __name__ == "__main__":
     #     print(f"\tcost: {path_optimizer.get_plan_quality(path_optimizer.existing_plans[i][1])}")
     #     print(f"\tlength: {len(path_optimizer.existing_plans[i][1])}")
     #     print()
-    # path_optimizer.optimize_plan()
-    # path_optimizer.save_paths_to_gif()
+    path_optimizer.optimize_plan()
+    path_optimizer.save_paths_to_gif()
