@@ -28,8 +28,8 @@ class PathOptimizer():
     def __init__(self, username):
         self.step_size = 1
         self.rrt_iter = 5000
-        self.optimizer_iter = 300
-        self.optimize_existing_iter = 5
+        self.optimizer_iter = 500
+        self.optimize_existing_iter = 0
         self.num_cubes = 6
         self.pool = mp.Pool(16)
         self.ur_params = UR5e_PARAMS(inflation_factor=1)
@@ -164,6 +164,8 @@ class PathOptimizer():
     
     def optimize_grip(self, start_config, cube_idx):
         num_iter = self.optimize_existing_iter if self.existing_plans_quality[cube_idx][0] < np.inf else self.optimizer_iter
+        if num_iter == 0:
+            return np.array([])
         print(f"Optimizing grip plan for cube {cube_idx+1} with {num_iter} iterations")
         starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
@@ -186,6 +188,8 @@ class PathOptimizer():
 
     def optimize_place(self, start_config, cube_idx):
         num_iter = self.optimize_existing_iter if self.existing_plans_quality[cube_idx][0] < np.inf else self.optimizer_iter
+        if num_iter == 0:
+            return np.array([])
         print(f"Optimizing place plan for cube {cube_idx+1} with {num_iter} iterations")
         starmap_args = [(start_config, self.target_cube_configs[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
