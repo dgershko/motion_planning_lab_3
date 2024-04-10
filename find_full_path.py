@@ -226,6 +226,8 @@ class PathOptimizer():
         gif_vis.save_paths_to_gif(plans, cube_positions, f"{self.user_path}/cube_plan.gif")
 
 if __name__ == "__main__":
+    import sys
+    sys.setrecursionlimit(10000)
     path_optimizer = PathOptimizer("roman")
     # # print existing paths and their quality
     # for i in range(6):

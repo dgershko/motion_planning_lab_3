@@ -43,6 +43,7 @@ class RRT_STAR(object):
 
                 if np.array_equal(new_state, goal_conf):
                     found_goal = True
+                    break
     
         if not found_goal:
             if return_cost:
