@@ -167,9 +167,11 @@ class PathOptimizer():
         if num_iter == 0:
             return np.array([])
         print(f"Optimizing grip plan for cube {cube_idx+1} with {num_iter} iterations")
-        starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
+        # starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
+        starmap_args = [(start_config, self.cube_approaches[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
-        fix_grip_result = lambda res: np.vstack((self.simplify_path(res[::-1]), self.cubes_actual[cube_idx]))
+        # fix_grip_result = lambda res: np.vstack((self.simplify_path(res[::-1]), self.cubes_actual[cube_idx]))
+        fix_grip_result = lambda res: np.vstack((self.simplify_path(res), self.cubes_actual[cube_idx]))
         results = [fix_grip_result(res) for res in results if len(res) >= 2]
         if results == []:
             print(f"\033[91mNo valid grip plans found for cube {cube_idx+1}\033[0m")
