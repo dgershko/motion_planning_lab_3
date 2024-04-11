@@ -27,9 +27,9 @@ def find_config_plan(conf_a, conf_b, cube_coords, step_size, rrt_iter):
 class PathOptimizer():
     def __init__(self, username):
         self.step_size = 1
-        self.rrt_iter = 5000
-        self.optimizer_iter = 500
-        self.optimize_existing_iter = 0
+        self.rrt_iter = 600
+        self.optimizer_iter = 100
+        self.optimize_existing_iter = 30
         self.num_cubes = 6
         self.pool = mp.Pool(16)
         self.ur_params = UR5e_PARAMS(inflation_factor=1)
@@ -237,3 +237,4 @@ if __name__ == "__main__":
     path_optimizer = PathOptimizer("roman")
     path_optimizer.optimize_plan()
     path_optimizer.save_paths_to_gif()
+
