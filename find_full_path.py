@@ -167,11 +167,11 @@ class PathOptimizer():
         if num_iter == 0:
             return np.array([])
         print(f"Optimizing grip plan for cube {cube_idx+1} with {num_iter} iterations")
-        # starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
-        starmap_args = [(start_config, self.cube_approaches[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
+        starmap_args = [(self.cube_approaches[cube_idx], start_config, self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
+        # starmap_args = [(start_config, self.cube_approaches[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
-        # fix_grip_result = lambda res: np.vstack((self.simplify_path(res[::-1]), self.cubes_actual[cube_idx]))
-        fix_grip_result = lambda res: np.vstack((self.simplify_path(res), self.cubes_actual[cube_idx]))
+        fix_grip_result = lambda res: np.vstack((self.simplify_path(res[::-1]), self.cubes_actual[cube_idx]))
+        # fix_grip_result = lambda res: np.vstack((self.simplify_path(res), self.cubes_actual[cube_idx]))
         results = [fix_grip_result(res) for res in results if len(res) >= 2]
         if results == []:
             print(f"\033[91mNo valid grip plans found for cube {cube_idx+1}\033[0m")
@@ -195,7 +195,7 @@ class PathOptimizer():
         print(f"Optimizing place plan for cube {cube_idx+1} with {num_iter} iterations")
         starmap_args = [(start_config, self.target_cube_configs[cube_idx], self.cube_coords, self.step_size, self.rrt_iter)] * num_iter
         results = self.pool.starmap(find_config_plan, starmap_args)
-        fix_place_result = lambda res: self.simplify_path(np.vstack((self.cube_approaches[cube_idx], res)))
+        fix_place_result = lambda res: self.simplify_path(np.vstack((self.cubes_actual[cube_idx], self.cube_approaches[cube_idx], res)))
         results = [fix_place_result(res) for res in results if len(res) >= 2]
         if results == []:
             print(f"\033[91mNo valid place plans found for cube {cube_idx+1}\033[0m")
@@ -235,15 +235,5 @@ if __name__ == "__main__":
     import sys
     sys.setrecursionlimit(10000)
     path_optimizer = PathOptimizer("roman")
-    # # print existing paths and their quality
-    # for i in range(6):
-    #     print(f"Cube {i+1}:")
-    #     print(f"Grip plan:")
-    #     print(f"\tcost: {path_optimizer.get_plan_quality(path_optimizer.existing_plans[i][0])}")
-    #     print(f"\tlength: {len(path_optimizer.existing_plans[i][0])}")
-    #     print(f"Place plan:")
-    #     print(f"\tcost: {path_optimizer.get_plan_quality(path_optimizer.existing_plans[i][1])}")
-    #     print(f"\tlength: {len(path_optimizer.existing_plans[i][1])}")
-    #     print()
     path_optimizer.optimize_plan()
     path_optimizer.save_paths_to_gif()
